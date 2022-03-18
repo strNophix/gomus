@@ -1,0 +1,3 @@
+# gomus
+
+yay cmus
