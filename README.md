@@ -1,3 +1,3 @@
 # gomus
 
-yay cmus
+cmus but in Go
