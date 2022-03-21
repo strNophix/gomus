@@ -21,3 +21,13 @@ func newTrackPauseCmd(isPaused bool) tea.Cmd {
 		return trackPauseMsg{isPaused}
 	}
 }
+
+type trackVolumeMsg struct {
+	volume float64
+}
+
+func newTrackVolumeCmd(volume float64) tea.Cmd {
+	return func() tea.Msg {
+		return trackVolumeMsg{volume}
+	}
+}

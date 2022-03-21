@@ -15,13 +15,16 @@ func newTrackPlayerView(tracks []track) trackPlayerView {
 	c := mapList(tracks, func(t track) list.Item {
 		return t
 	})
+
 	l := list.New(c, newTrackListDelegate(), 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
 
-	return trackPlayerView{trackList: l}
+	s := statusBar{currentVolume: startVolume}
+
+	return trackPlayerView{trackList: l, statusBar: s}
 }
 
 func (v trackPlayerView) Init() tea.Cmd {

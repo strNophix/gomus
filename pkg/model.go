@@ -21,6 +21,7 @@ type Model struct {
 	currentlyPlaying int
 
 	TrackPlayer
+	TrackPlayerEffects
 	trackIndex
 
 	trackPlayerView
@@ -34,8 +35,9 @@ func NewModel(args ModelArgs) Model {
 		cursor:           0,
 		currentlyPlaying: 0,
 
-		trackIndex:  ti,
-		TrackPlayer: TrackPlayer{},
+		trackIndex:         ti,
+		TrackPlayer:        TrackPlayer{},
+		TrackPlayerEffects: newTrackPlayerEffects(),
 
 		trackPlayerView: tpv,
 	}
@@ -59,16 +61,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			t := m.trackPlayerView.trackList.SelectedItem().(track)
-			cmds = append(cmds, newTrackChangeCmd(t))
+
 			stream, format, err := t.GetStream()
 			check(err)
+
 			speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-			m.TrackPlayer.Play(&stream)
+
+			m.TrackPlayer.Play(&stream, &m.TrackPlayerEffects)
+			cmds = append(cmds, newTrackChangeCmd(t))
 		case " ":
-			pauseState := m.TrackPlayer.TogglePause()
-			cmds = append(cmds, newTrackPauseCmd(pauseState))
+			if m.TrackPlayer.playerCtrl != nil {
+				s := m.TrackPlayer.TogglePause()
+				cmds = append(cmds, newTrackPauseCmd(s))
+			}
+		case "-", "=":
+			v := &m.TrackPlayerEffects.volume
+
+			if msg.String() == "-" {
+				*v -= 0.1
+				if *v < minVolume {
+					*v = minVolume
+				}
+			} else {
+				*v += 0.1
+				if *v > maxVolume {
+					*v = maxVolume
+				}
+			}
+
+			if m.TrackPlayer.playerVol != nil {
+				m.TrackPlayer.SetVolume(*v)
+			}
+
+			cmds = append(cmds, newTrackVolumeCmd(*v))
 		}
 	}
+
 	var cmd tea.Cmd
 	m.trackPlayerView, cmd = m.trackPlayerView.Update(msg)
 	cmds = append(cmds, cmd)
