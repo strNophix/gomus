@@ -34,9 +34,9 @@ func (s statusBar) View() string {
 
 	var statusKey string
 	if s.isPaused {
-		statusKey = statusStyle.Render("PAUSED")
+		statusKey = statusStyle.Render("")
 	} else {
-		statusKey = statusStyle.Render("NOW PLAYING")
+		statusKey = statusStyle.Render("")
 	}
 
 	statusVal := statusText.Copy().
