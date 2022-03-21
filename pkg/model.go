@@ -63,9 +63,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.trackPlayer.play(t.getReader())
 		}
 	}
-
-	tpv, cmd := m.trackPlayerView.Update(msg)
-	m.trackPlayerView = tpv
+	var cmd tea.Cmd
+	m.trackPlayerView, cmd = m.trackPlayerView.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)

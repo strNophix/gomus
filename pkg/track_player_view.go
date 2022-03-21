@@ -41,12 +41,11 @@ func (v trackPlayerView) Update(msg tea.Msg) (trackPlayerView, tea.Cmd) {
 		v.trackList.SetWidth(msg.Width)
 	}
 
-	tl, cmd := v.trackList.Update(msg)
-	v.trackList = tl
+	var cmd tea.Cmd
+	v.trackList, cmd = v.trackList.Update(msg)
 	cmds = append(cmds, cmd)
 
-	sb, cmd := v.statusBar.Update(msg)
-	v.statusBar = sb
+	v.statusBar, cmd = v.statusBar.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return v, tea.Batch(cmds...)
