@@ -15,3 +15,11 @@ func check(err error) {
 		log.Fatal(err)
 	}
 }
+
+type Numeric interface {
+	float64
+}
+
+func MapFloatBetween[T Numeric](value, start1, stop1, start2, stop2 T) T {
+	return start2 + (value-start1)*(stop2-start2)/(stop1-start1)
+}
