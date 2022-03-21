@@ -19,8 +19,8 @@ func (d trackListDelegate) Render(w io.Writer, m list.Model, index int, listItem
 	f := t.fullName()
 
 	if m.Index() == index {
-		li := lipgloss.NewStyle().Bold(true).Render(f)
-		fmt.Fprintf(w, fmt.Sprintf("[>] %s", li))
+		li := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("[>] %s", f))
+		fmt.Fprintf(w, li)
 		return
 	}
 
