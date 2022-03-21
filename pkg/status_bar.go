@@ -18,7 +18,7 @@ var (
 			Background(lipgloss.Color("#FF5F87")).
 			Padding(0, 1)
 
-	statusText = lipgloss.NewStyle().Inherit(statusBarStyle)
+	statusText = lipgloss.NewStyle().Inherit(statusBarStyle).Padding(0, 1)
 )
 
 type statusBar struct {
