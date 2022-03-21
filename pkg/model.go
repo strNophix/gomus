@@ -12,6 +12,10 @@ var (
 	termHeight = 0
 )
 
+type ModelArgs struct {
+	MusicPath string
+}
+
 type Model struct {
 	cursor           int
 	currentlyPlaying int
@@ -22,13 +26,8 @@ type Model struct {
 	trackPlayerView trackPlayerView
 }
 
-func NewModel() Model {
-	if len(os.Args) < 2 {
-		fmt.Println("Expected a path to some music")
-		os.Exit(0)
-	}
-
-	ti := NewDirTrackIndex(os.Args[1])
+func NewModel(args ModelArgs) Model {
+	ti := NewDirTrackIndex(args.MusicPath)
 	tpv := newTrackPlayerView(ti.tracks)
 
 	return Model{
