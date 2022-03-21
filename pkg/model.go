@@ -61,6 +61,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t := m.trackPlayerView.trackList.SelectedItem().(track)
 			cmds = append(cmds, newTrackChangeCmd(t))
 			m.trackPlayer.play(t.getReader())
+		case " ":
+			pauseState := m.TrackPlayer.TogglePause()
+			cmds = append(cmds, newTrackPauseCmd(pauseState))
 		}
 	}
 	var cmd tea.Cmd

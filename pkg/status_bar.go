@@ -21,6 +21,7 @@ var (
 )
 
 type statusBar struct {
+	isPaused     bool
 	currentTrack track
 }
 
@@ -31,7 +32,13 @@ func (s statusBar) Init() tea.Cmd {
 func (s statusBar) View() string {
 	w := lipgloss.Width
 
-	statusKey := statusStyle.Render("NOW PLAYING")
+	var statusKey string
+	if s.isPaused {
+		statusKey = statusStyle.Render("PAUSED")
+	} else {
+		statusKey = statusStyle.Render("NOW PLAYING")
+	}
+
 	statusVal := statusText.Copy().
 		Width(termWidth - w(statusKey)).
 		Render(s.currentTrack.fullName())
@@ -48,6 +55,8 @@ func (s statusBar) Update(msg tea.Msg) (statusBar, tea.Cmd) {
 	switch msg := msg.(type) {
 	case trackChangeMsg:
 		s.currentTrack = msg.nextTrack
+	case trackPauseMsg:
+		s.isPaused = msg.isPaused
 	}
 
 	return s, nil

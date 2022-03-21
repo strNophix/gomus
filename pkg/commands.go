@@ -11,3 +11,13 @@ func newTrackChangeCmd(nextTrack track) tea.Cmd {
 		return trackChangeMsg{nextTrack}
 	}
 }
+
+type trackPauseMsg struct {
+	isPaused bool
+}
+
+func newTrackPauseCmd(isPaused bool) tea.Cmd {
+	return func() tea.Msg {
+		return trackPauseMsg{isPaused}
+	}
+}
