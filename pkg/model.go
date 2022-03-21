@@ -1,10 +1,10 @@
 package gomus
 
 import (
-	"fmt"
-	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/faiface/beep/speaker"
 )
 
 var (
@@ -20,10 +20,10 @@ type Model struct {
 	cursor           int
 	currentlyPlaying int
 
-	trackPlayer
+	TrackPlayer
 	trackIndex
 
-	trackPlayerView trackPlayerView
+	trackPlayerView
 }
 
 func NewModel(args ModelArgs) Model {
@@ -35,7 +35,7 @@ func NewModel(args ModelArgs) Model {
 		currentlyPlaying: 0,
 
 		trackIndex:  ti,
-		trackPlayer: trackPlayer{},
+		TrackPlayer: TrackPlayer{},
 
 		trackPlayerView: tpv,
 	}
@@ -55,12 +55,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			m.trackPlayer.close()
+			m.TrackPlayer.Close()
 			return m, tea.Quit
 		case "enter":
 			t := m.trackPlayerView.trackList.SelectedItem().(track)
 			cmds = append(cmds, newTrackChangeCmd(t))
-			m.trackPlayer.play(t.getReader())
+			stream, format, err := t.GetStream()
+			check(err)
+			speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+			m.TrackPlayer.Play(&stream)
 		case " ":
 			pauseState := m.TrackPlayer.TogglePause()
 			cmds = append(cmds, newTrackPauseCmd(pauseState))

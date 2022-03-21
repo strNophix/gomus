@@ -1,32 +1,35 @@
 package gomus
 
 import (
-	"io"
-	"time"
-
 	"github.com/faiface/beep"
-	"github.com/faiface/beep/flac"
 	"github.com/faiface/beep/speaker"
 )
 
-type trackPlayer struct {
-	currentStream beep.StreamSeekCloser
+type TrackPlayer struct {
+	streamer   *beep.StreamSeekCloser
+	playerCtrl *beep.Ctrl
 }
 
-func (t trackPlayer) play(reader io.Reader) {
-	if t.currentStream != nil {
-		t.currentStream.Close()
+func (t *TrackPlayer) Play(streamer *beep.StreamSeekCloser) {
+	if t.streamer != nil {
+		t.Close()
 	}
-	streamer, format, err := flac.Decode(reader)
-	check(err)
 
-	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-	check(err)
+	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, *streamer), Paused: false}
+	speaker.Play(ctrl)
 
-	speaker.Play(streamer)
-	t.currentStream = streamer
+	t.playerCtrl = ctrl
+	t.streamer = streamer
 }
 
-func (t trackPlayer) close() {
-	t.currentStream.Close()
+func (t *TrackPlayer) TogglePause() bool {
+	speaker.Lock()
+	newState := !t.playerCtrl.Paused
+	t.playerCtrl.Paused = newState
+	speaker.Unlock()
+	return newState
+}
+
+func (t *TrackPlayer) Close() {
+	(*t.streamer).Close()
 }
