@@ -5,6 +5,7 @@
 *.dll
 *.so
 *.dylib
+gomus
 
 # Test binary, built with `go test -c`
 *.test
@@ -15,5 +16,8 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# Test data
+# Sample data
 samples/
+
+# Side-effects of running `gomus`
+.gomus/
