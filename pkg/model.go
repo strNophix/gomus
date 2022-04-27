@@ -1,10 +1,11 @@
 package gomus
 
 import (
-	"time"
+	"errors"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/faiface/beep/speaker"
+	"github.com/faiface/beep"
 )
 
 var (
@@ -12,8 +13,9 @@ var (
 	termHeight = 0
 )
 
-type ModelArgs struct {
+type ModelConfig struct {
 	MusicPath string
+	GomusPath string
 }
 
 type Model struct {
@@ -23,28 +25,32 @@ type Model struct {
 	TrackPlayer
 	TrackPlayerEffects
 	trackIndex
-
 	trackPlayerView
 }
 
-func NewModel(args ModelArgs) Model {
-	ti := NewDirTrackIndex(args.MusicPath)
-	tpv := newTrackPlayerView(ti.tracks)
+func NewModel(cfg ModelConfig) Model {
+	if _, err := os.Stat(cfg.GomusPath); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(cfg.GomusPath, 0755)
+		check(err)
+	}
 
 	return Model{
 		cursor:           0,
 		currentlyPlaying: 0,
 
-		trackIndex:         ti,
-		TrackPlayer:        TrackPlayer{},
-		TrackPlayerEffects: newTrackPlayerEffects(),
-
-		trackPlayerView: tpv,
+		trackIndex:         NewDirTrackIndex(cfg),
+		TrackPlayer:        NewTrackPlayer(),
+		TrackPlayerEffects: NewTrackPlayerEffects(),
+		trackPlayerView:    NewTrackPlayerView(),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, m.trackPlayerView.Init())
+	var cmds []tea.Cmd
+	cmds = append(cmds, tea.EnterAltScreen)
+	cmds = append(cmds, m.trackPlayerView.Init())
+	cmds = append(cmds, newLibraryUpdateCmd(m.trackIndex.tracks))
+	return tea.Batch(cmds...)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -57,7 +63,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			m.TrackPlayer.Close()
 			return m, tea.Quit
 		case "enter":
 			t := m.trackPlayerView.trackList.SelectedItem().(track)
@@ -65,35 +70,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			stream, format, err := t.GetStream()
 			check(err)
 
-			speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+			resampled := beep.Resample(4, format.SampleRate, m.TrackPlayer.SampleRate, stream)
+			m.TrackPlayer.Play(resampled)
 
-			m.TrackPlayer.Play(&stream, &m.TrackPlayerEffects)
 			cmds = append(cmds, newTrackChangeCmd(t))
 		case " ":
-			if m.TrackPlayer.playerCtrl != nil {
-				s := m.TrackPlayer.TogglePause()
-				cmds = append(cmds, newTrackPauseCmd(s))
-			}
+			s := m.TrackPlayer.TogglePause()
+			cmds = append(cmds, newTrackPauseCmd(s))
 		case "-", "=":
-			v := &m.TrackPlayerEffects.volume
-
+			pe := &m.TrackPlayerEffects
 			if msg.String() == "-" {
-				*v -= 0.1
-				if *v < minVolume {
-					*v = minVolume
+				pe.volume -= 0.1
+				if pe.volume < minVolume {
+					pe.volume = minVolume
 				}
 			} else {
-				*v += 0.1
-				if *v > maxVolume {
-					*v = maxVolume
+				pe.volume += 0.1
+				if pe.volume > maxVolume {
+					pe.volume = maxVolume
 				}
 			}
 
-			if m.TrackPlayer.playerVol != nil {
-				m.TrackPlayer.SetVolume(*v)
-			}
+			m.TrackPlayer.SetVolume(pe.volume)
 
-			cmds = append(cmds, newTrackVolumeCmd(*v))
+			cmds = append(cmds, newTrackVolumeCmd(m.TrackPlayerEffects.volume))
 		}
 	}
 

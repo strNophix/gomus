@@ -1,6 +1,8 @@
 package gomus
 
 import (
+	"time"
+
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/effects"
 	"github.com/faiface/beep/speaker"
@@ -17,44 +19,51 @@ type TrackPlayerEffects struct {
 	volume float64
 }
 
-func newTrackPlayerEffects() TrackPlayerEffects {
+func NewTrackPlayerEffects() TrackPlayerEffects {
 	return TrackPlayerEffects{volume: startVolume}
 }
 
 type TrackPlayer struct {
-	streamer   *beep.StreamSeekCloser
-	playerCtrl *beep.Ctrl
-	playerVol  *effects.Volume
+	*beep.Ctrl
+	*effects.Volume
+
+	beep.SampleRate
 }
 
-func (t *TrackPlayer) Play(streamer *beep.StreamSeekCloser, trackEffects *TrackPlayerEffects) {
-	if t.streamer != nil {
-		t.Close()
+func NewTrackPlayer() TrackPlayer {
+	sr := beep.SampleRate(44100)
+	speaker.Init(sr, sr.N(time.Second/10))
+
+	ctrl := &beep.Ctrl{Streamer: beep.Silence(1), Paused: false}
+	volume := &effects.Volume{Streamer: ctrl, Base: base, Volume: startVolume, Silent: false}
+
+	return TrackPlayer{
+		SampleRate: sr,
+		Ctrl:       ctrl,
+		Volume:     volume,
 	}
+}
 
-	ctrl := &beep.Ctrl{Streamer: beep.Loop(-1, *streamer), Paused: false}
-	volume := &effects.Volume{Streamer: ctrl, Base: base, Volume: trackEffects.volume, Silent: false}
-	speaker.Play(volume)
+func (t *TrackPlayer) Play(streamer beep.Streamer) {
+	speaker.Clear()
 
-	t.streamer = streamer
-	t.playerCtrl = ctrl
-	t.playerVol = volume
+	speaker.Lock()
+	t.Ctrl.Streamer = streamer
+	speaker.Unlock()
+
+	speaker.Play(t.Volume)
 }
 
 func (t *TrackPlayer) TogglePause() bool {
 	speaker.Lock()
-	newState := !t.playerCtrl.Paused
-	t.playerCtrl.Paused = newState
+	newState := !t.Ctrl.Paused
+	t.Ctrl.Paused = newState
 	speaker.Unlock()
 	return newState
 }
 
 func (t *TrackPlayer) SetVolume(volume float64) {
 	speaker.Lock()
-	(*t.playerVol).Volume = volume
+	t.Volume.Volume = volume
 	speaker.Unlock()
-}
-
-func (t *TrackPlayer) Close() {
-	(*t.streamer).Close()
 }

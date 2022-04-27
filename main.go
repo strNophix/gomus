@@ -13,8 +13,9 @@ func main() {
 		log.Fatal("Expected a path to some music")
 	}
 
-	p := tea.NewProgram(gomus.NewModel(gomus.ModelArgs{
+	p := tea.NewProgram(gomus.NewModel(gomus.ModelConfig{
 		MusicPath: os.Args[1],
+		GomusPath: ".gomus",
 	}))
 
 	if err := p.Start(); err != nil {

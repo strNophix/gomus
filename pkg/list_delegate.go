@@ -24,7 +24,7 @@ func (d trackListDelegate) Render(w io.Writer, m list.Model, index int, listItem
 		return
 	}
 
-	fmt.Fprintf(w, f)
+	fmt.Fprintf(w, fmt.Sprintf("    %s", f))
 }
 
 func newTrackListDelegate() trackListDelegate {

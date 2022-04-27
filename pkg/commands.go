@@ -31,3 +31,13 @@ func newTrackVolumeCmd(volume float64) tea.Cmd {
 		return trackVolumeMsg{volume}
 	}
 }
+
+type libraryUpdateMsg struct {
+	tracks []track
+}
+
+func newLibraryUpdateCmd(tracks []track) tea.Cmd {
+	return func() tea.Msg {
+		return libraryUpdateMsg{tracks}
+	}
+}

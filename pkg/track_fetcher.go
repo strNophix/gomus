@@ -1,76 +1,80 @@
 package gomus
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
+	"database/sql"
+	"io/fs"
+	"log"
 	"path/filepath"
 	"strings"
 
-	"github.com/faiface/beep"
-	bflac "github.com/faiface/beep/flac"
-	"github.com/mewkiz/flac"
-	"github.com/mewkiz/flac/meta"
+	_ "github.com/mattn/go-sqlite3"
 )
-
-type track struct {
-	Name      string
-	Artist    string
-	TrackPath string
-}
-
-func (t track) FilterValue() string { return "" }
-func (t track) fullName() string    { return fmt.Sprintf("%s - %s", t.Artist, t.Name) }
-
-func (t track) GetStream() (beep.StreamSeekCloser, beep.Format, error) {
-	f, err := os.Open(t.TrackPath)
-	check(err)
-
-	if strings.HasSuffix(t.TrackPath, ".flac") {
-		streamer, format, err := bflac.Decode(f)
-		check(err)
-		return streamer, format, nil
-	}
-
-	return nil, beep.Format{}, fmt.Errorf("Could not parse track")
-}
-
-func TrackFromFlac(path string) track {
-	s, err := flac.ParseFile(path)
-	check(err)
-
-	t := track{TrackPath: path}
-	for _, block := range s.Blocks {
-		if block.Header.Type == meta.TypeVorbisComment {
-			c := block.Body.(*meta.VorbisComment)
-			for _, tag := range c.Tags {
-				if tag[0] == "ARTIST" {
-					t.Artist = tag[1]
-				} else if tag[0] == "TITLE" {
-					t.Name = tag[1]
-				}
-			}
-		}
-	}
-
-	return t
-}
 
 type trackIndex struct {
 	tracks []track
+	db     *sql.DB
 }
 
-func NewDirTrackIndex(path string) trackIndex {
-	files, err := ioutil.ReadDir(path)
-	check(err)
-
-	tracks := []track{}
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".flac") {
-			p := filepath.Join(path, file.Name())
-			tracks = append(tracks, TrackFromFlac(p))
-		}
+func NewDirTrackIndex(cfg ModelConfig) trackIndex {
+	dbPath := filepath.Join(cfg.GomusPath, "gomus.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		log.Fatalf("Failed to open gomus database: %v", err)
 	}
 
-	return trackIndex{tracks: tracks}
+	tblStmt := `
+	CREATE TABLE IF NOT EXISTS track (
+		title TEXT NOT NULL,
+		album TEXT,
+		artist TEXT NOT NULL,
+		uri TEXT NOT NULL,
+		trackNumber INTEGER,
+		trackTotal INTEGER
+	);
+	`
+
+	_, err = db.Exec(tblStmt)
+	if err != nil {
+		log.Fatalf("%q: %s\n", err, tblStmt)
+	}
+
+	path := cfg.MusicPath
+	tracks, err := ScanDirectory(path)
+	check(err)
+
+	ti := trackIndex{tracks, db}
+	ti.IndexTracks(tracks)
+
+	return ti
+}
+
+func (ti trackIndex) IndexTracks(tracks []track) error {
+	tx, err := ti.db.Begin()
+	check(err)
+
+	stmt, err := tx.Prepare("insert into track(title, album, artist, uri, trackNumber, trackTotal) values (?, ?, ?, ?, ?, ?)")
+	check(err)
+
+	for _, t := range tracks {
+		stmt.Exec(t.Title, t.Album, t.Artist, t.TrackPath, t.TrackNumber, t.TrackTotal)
+	}
+
+	err = tx.Commit()
+	check(err)
+
+	return nil
+}
+
+func ScanDirectory(path string) ([]track, error) {
+	tracks := []track{}
+	filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		check(err)
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".flac") {
+			t := TrackFromFlac(path)
+			tracks = append(tracks, t)
+		}
+		return nil
+	})
+
+	return tracks, nil
 }

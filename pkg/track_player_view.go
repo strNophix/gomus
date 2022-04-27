@@ -11,20 +11,15 @@ type trackPlayerView struct {
 	statusBar
 }
 
-func newTrackPlayerView(tracks []track) trackPlayerView {
-	c := mapList(tracks, func(t track) list.Item {
-		return t
-	})
-
-	l := list.New(c, newTrackListDelegate(), 0, 0)
+func NewTrackPlayerView() trackPlayerView {
+	l := list.New([]list.Item{}, newTrackListDelegate(), 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
-
+	l.SetShowPagination(false)
 	s := statusBar{currentVolume: startVolume}
-
-	return trackPlayerView{trackList: l, statusBar: s}
+	return trackPlayerView{statusBar: s, trackList: l}
 }
 
 func (v trackPlayerView) Init() tea.Cmd {
@@ -42,6 +37,11 @@ func (v trackPlayerView) Update(msg tea.Msg) (trackPlayerView, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		v.trackList.SetHeight(msg.Height - 2)
 		v.trackList.SetWidth(msg.Width)
+	case libraryUpdateMsg:
+		c := MapList(msg.tracks, func(t track) list.Item {
+			return t
+		})
+		v.trackList.SetItems(c)
 	}
 
 	var cmd tea.Cmd
