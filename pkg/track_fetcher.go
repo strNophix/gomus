@@ -23,13 +23,25 @@ func NewDirTrackIndex(cfg ModelConfig) trackIndex {
 	}
 
 	tblStmt := `
+	CREATE TABLE IF NOT EXISTS artist (
+		artist_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT UNIQUE
+	);
+
+	CREATE TABLE IF NOT EXISTS album (
+		album_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		artist_id INTEGER NOT NULL REFERENCES artist(artist_id) DEFERRABLE INITIALLY DEFERRED,
+		name TEXT
+	);
+
+	CREATE UNIQUE INDEX IF NOT EXISTS artist_album ON album(artist_id, name);
+	
 	CREATE TABLE IF NOT EXISTS track (
+		track_id INTEGER PRIMARY KEY AUTOINCREMENT,
 		title TEXT NOT NULL,
-		album TEXT,
-		artist TEXT NOT NULL,
-		uri TEXT NOT NULL,
-		trackNumber INTEGER,
-		trackTotal INTEGER
+		album_id INTEGER REFERENCES album(album_id) DEFERRABLE INITIALLY DEFERRED,
+		artist_id INTEGER NOT NULL REFERENCES artist(artist_id) DEFERRABLE INITIALLY DEFERRED,
+		uri TEXT NOT NULL UNIQUE
 	);
 	`
 
@@ -49,19 +61,46 @@ func NewDirTrackIndex(cfg ModelConfig) trackIndex {
 }
 
 func (ti trackIndex) IndexTracks(tracks []track) error {
+	var query string
 	tx, err := ti.db.Begin()
 	check(err)
 
-	stmt, err := tx.Prepare("insert into track(title, album, artist, uri, trackNumber, trackTotal) values (?, ?, ?, ?, ?, ?)")
+	artistSet := make(map[string]bool)
+	query = `INSERT OR IGNORE INTO artist(name) VALUES (?)`
+	artistStmt, err := tx.Prepare(query)
+	check(err)
+
+	albumSet := make(map[string]bool)
+	query = `
+	INSERT OR IGNORE INTO album (artist_id, name)
+	VALUES ((SELECT artist_id FROM artist WHERE name = ?), ?);
+	`
+	albumStmt, err := tx.Prepare(query)
+	check(err)
+
+	query = `
+	INSERT OR IGNORE INTO track (title, uri, artist_id, album_id) 
+	VALUES (?, ?, (SELECT artist_id FROM artist WHERE name = ?), (SELECT album_id FROM album WHERE name = ?));
+	`
+	trackStmt, err := tx.Prepare(query)
 	check(err)
 
 	for _, t := range tracks {
-		stmt.Exec(t.Title, t.Album, t.Artist, t.TrackPath, t.TrackNumber, t.TrackTotal)
+		if _, ok := artistSet[t.Artist]; !ok {
+			artistStmt.Exec(t.Artist)
+			artistSet[t.Artist] = true
+		}
+
+		key := t.Artist + ":" + t.Album
+		if _, ok := albumSet[key]; !ok {
+			albumStmt.Exec(t.Artist, t.Album)
+			albumSet[key] = true
+		}
+
+		trackStmt.Exec(t.Title, t.TrackPath, t.Artist, t.Album)
 	}
 
-	err = tx.Commit()
-	check(err)
-
+	tx.Commit()
 	return nil
 }
 
