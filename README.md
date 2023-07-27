@@ -1,6 +1,6 @@
 # gomus
 
-Bubbletea-based terminal music player inspired by [cmus](https://github.com/cmus/cmus). Gomus has functionality for browsing music, toggling playback and adjusting volume.
+[Bubbletea](https://github.com/charmbracelet/bubbletea)-based terminal music player inspired by [cmus](https://github.com/cmus/cmus). Gomus has functionality for browsing music, toggling playback and adjusting volume.
 
 ![](assets/screenshot.png)
 
